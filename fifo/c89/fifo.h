@@ -1,7 +1,13 @@
-#ifndef __K_FIFO_H
-#define __K_FIFO_H
+/**
+ * modified from linux/kfifo.h/.c
+*/
+#ifndef __K_FIFO_H__
+#define __K_FIFO_H__
 
+#include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <assert.h>
 
@@ -27,8 +33,31 @@ typedef struct _FIFO_ {
     uint32_t    out;        /* data is extracted from off. (out % size) */
 } FIFO;
 
+/**
+ * http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+ */
+static bool is_power_of_2(uint32_t v) {
+    return (v != 0 && ((v & (v - 1)) == 0));
+}
+
+static uint32_t roundup_pow_of_two(uint32_t v) {
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
 /* size have to be a power of 2 */
 static FIFO *fifo_init(uint32_t size) {
+    assert(size);
+    if (!is_power_of_2(size)) {
+        printf("fifo round up: %d\n", size);
+        size = roundup_pow_of_two(size);
+    }
+    printf("fifo size: %d\n", size);
     FIFO *fifo = (FIFO *)malloc(sizeof(FIFO));
     assert(fifo);
     fifo->buffer = (uint8_t *)malloc(size);
@@ -45,7 +74,7 @@ static void fifo_free(FIFO *fifo) {
     free(fifo);
 }
 
-uint32_t fifo_put(FIFO *fifo, uint8_t *buffer, uint32_t len) {
+static uint32_t fifo_put(FIFO *fifo, uint8_t *buffer, uint32_t len) {
     uint32_t l;
     len = min(len, fifo->size - fifo->in + fifo->out);
     /* first put the data starting from fifo->in to buffer end */
@@ -57,7 +86,7 @@ uint32_t fifo_put(FIFO *fifo, uint8_t *buffer, uint32_t len) {
     return len;
 }
 
-uint32_t fifo_get(FIFO *fifo, uint8_t *buffer, uint32_t len) {
+static uint32_t fifo_get(FIFO *fifo, uint8_t *buffer, uint32_t len) {
     uint32_t l;
 
     len = min(len, fifo->in - fifo->out);
@@ -72,5 +101,9 @@ uint32_t fifo_get(FIFO *fifo, uint8_t *buffer, uint32_t len) {
     return len;
 }
 
+static bool empty(FIFO* fifo) {
+    assert(fifo);
+    return fifo->in == fifo->out;
+}
 
-#endif /* __K_FIFO_H */
+#endif /* __K_FIFO_H__ */
